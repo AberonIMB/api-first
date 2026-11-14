@@ -1,0 +1,357 @@
+openapi: 3.0.3
+info:
+  title: TODO List API
+  version: 1.0.0
+  description:
+    API для управления личными задачами пользователя
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Локальный сервер разработки
+tags:
+  - name: Tasks
+    description: Управление задачами пользователя
+
+security:
+  - BearerAuth: []
+
+paths:
+  /tasks:
+    get:
+      tags: [Tasks]
+      operationId: listTasks
+      summary: Получить список задач текущего пользователя
+      description: Возвращает страницу со всеми задачами текущего пользователя
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Query'
+        - $ref: '#/components/parameters/Completed'
+      responses:
+        '200':
+          description: Список задач успешно получен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Tasks]
+      operationId: createTask
+      summary: Создать задачу
+      description: Создаёт задачу для пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreateRequest'
+      responses:
+        '200':
+          description: Задача создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /tasks/{taskId}:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+    get:
+      tags: [Tasks]
+      operationId: getTask
+      summary: Получить задачу по ID
+      description: Возвращает задачу, если она существует и принадлежит текущему пользователю
+      responses:
+        '200':
+          description: Задача найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags: [Tasks]
+      operationId: updateTask
+      summary: Частично обновить задачу
+      description: Изменяет только переданные поля задачи
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskPatchRequest'
+      responses:
+        '200':
+          description: Задача обновлена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Tasks]
+      operationId: deleteTask
+      summary: Удалить задачу
+      description: Удаляет задачу текущего пользователя
+      responses:
+        '200':
+          description: Задача удалена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskDeleteResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token
+
+  parameters:
+    TaskId:
+      name: taskId
+      in: path
+      required: true
+      description: UUID задачи
+      schema:
+        type: string
+        format: uuid
+    Page:
+      name: page
+      in: query
+      required: false
+      description: Номер страницы, начиная с 1
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: pageSize
+      in: query
+      required: false
+      description: Количество элементов на странице
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    Query:
+      name: query
+      in: query
+      required: false
+      description: Поиск по названию или описанию задачи
+      schema:
+        type: string
+        maxLength: 100
+    Completed:
+      name: completed
+      in: query
+      required: false
+      description: Фильтр по статусу выполнения задачи
+      schema:
+        type: boolean
+
+  responses:
+    BadRequest:
+      description: Некорректное тело запроса или параметры
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: BAD_REQUEST
+            message: Некорректное тело запроса или параметры
+            traceId: 550e8400-e29b-41d4-a716-446655440000
+    Unauthorized:
+      description: Неизвестно, кто обращается — токен отсутствует, просрочен или недействителен
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: UNAUTHORIZED
+            message: Bearer token is missing or invalid
+            traceId: 550e8400-e29b-41d4-a716-446655440000
+    Forbidden:
+      description: Пользователь аутентифицирован, но не имеет доступа к этой задаче
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: FORBIDDEN
+            message: You do not have access to this task
+            traceId: 550e8400-e29b-41d4-a716-446655440000
+    NotFound:
+      description: Задача с указанным ID не существует
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: NOT_FOUND
+            message: Task with the specified ID was not found
+            traceId: 550e8400-e29b-41d4-a716-446655440000
+
+  schemas:
+    Task:
+      type: object
+      description: Публичный DTO задачи
+      additionalProperties: false
+      required: [id, title, completed, priority, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+          description: Идентификатор задачи
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: Подготовить презентацию
+        description:
+          type: string
+          maxLength: 1000
+          nullable: true
+          example: Добавить итоги исследования и выводы
+        completed:
+          type: boolean
+          example: false
+        priority:
+          type: string
+          enum: [low, medium, high]
+          example: medium
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+          description: Срок выполнения в формате YYYY-MM-DD
+          example: '2026-11-20'
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+
+    TaskCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 1000
+          nullable: true
+        completed:
+          type: boolean
+          default: false
+        priority:
+          type: string
+          enum: [low, medium, high]
+          default: medium
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+
+    TaskPatchRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 1000
+          nullable: true
+        completed:
+          type: boolean
+        priority:
+          type: string
+          enum: [low, medium, high]
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+
+    TaskListResponse:
+      type: object
+      additionalProperties: false
+      required: [items, page, pageSize, totalItems]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Task'
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+        totalItems:
+          type: integer
+          minimum: 0
+
+    TaskDeleteResponse:
+      type: object
+      additionalProperties: false
+      required: [id, deleted]
+      properties:
+        id:
+          type: string
+          format: uuid
+        deleted:
+          type: boolean
+          enum: [true]
+
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [code, message, traceId]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        traceId:
+          type: string
+          format: uuid
+          description: Идентификатор запроса для поиска ошибки в логах
